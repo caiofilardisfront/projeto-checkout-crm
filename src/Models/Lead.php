@@ -73,4 +73,47 @@ class Lead
             'compartilhado_update' => (int) $compartilhado
         ]);
     }
+
+    /**
+     * Insere o Lead e o atribui imediatamente ao usuário (Regra RLS) usando Transação.
+     */
+    public static function criarLead(array $dados, int $idUsuario): bool
+    {
+        $pdo = Database::getConnection();
+        
+        try {
+            // Inicia transação: garante que o lead só exista se a atribuição também for registrada
+            $pdo->beginTransaction();
+
+            // 1. Inserção do Lead [1]
+            $sqlLead = "INSERT INTO leads (nome_contato, nome_agencia, telefone, valor_proposta, status, origem) 
+                        VALUES (:nome_contato, :nome_agencia, :telefone, :valor_proposta, 'novo', :origem)";
+            $stmtLead = $pdo->prepare($sqlLead);
+            $stmtLead->execute([
+                'nome_contato' => $dados['nome_contato'],
+                'nome_agencia' => $dados['nome_agencia'],
+                'telefone' => $dados['telefone'],
+                'valor_proposta' => $dados['valor_proposta'],
+                'origem' => $dados['origem']
+            ]);
+
+            $idLead = (int) $pdo->lastInsertId();
+
+            // 2. Registro do Isolamento RLS [2]
+            $sqlAtribuicao = "INSERT INTO atribuicao_leads (id_lead, id_usuario, compartilhado) 
+                              VALUES (:id_lead, :id_usuario, 0)";
+            $stmtAtribuicao = $pdo->prepare($sqlAtribuicao);
+            $stmtAtribuicao->execute([
+                'id_lead' => $idLead,
+                'id_usuario' => $idUsuario
+            ]);
+
+            $pdo->commit();
+            return true;
+        } catch (\Exception $e) {
+            $pdo->rollBack();
+            error_log("CRM-CHECKOUT CREATE LEAD ERROR: " . $e->getMessage());
+            throw $e;
+        }
+    }
 }

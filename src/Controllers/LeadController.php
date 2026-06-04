@@ -80,4 +80,51 @@ class LeadController
         }
         exit;
     }
+
+    /**
+     * Processa a criação via Fetch API (POST).
+     */
+    public function store(): void
+    {
+        AuthMiddleware::handle();
+        header('Content-Type: application/json');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['status' => 'error', 'message' => 'Método HTTP não permitido.']);
+            exit;
+        }
+
+        $payload = json_decode(file_get_contents('php://input'), true);
+        
+        // Sanitização estrita contra injeção de scripts (XSS) e SQLi
+        $nomeContato = filter_var($payload['nome_contato'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
+        $nomeAgencia = filter_var($payload['nome_agencia'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
+        $telefone = filter_var($payload['telefone'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
+        $valorProposta = filter_var($payload['valor_proposta'] ?? 0, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
+        $origem = filter_var($payload['origem'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
+
+        if (empty($nomeContato) || empty($nomeAgencia)) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Nome do contato e agência são obrigatórios.']);
+            exit;
+        }
+
+        try {
+            Lead::criarLead([
+                'nome_contato' => $nomeContato,
+                'nome_agencia' => $nomeAgencia,
+                'telefone' => $telefone,
+                'valor_proposta' => (float) $valorProposta,
+                'origem' => $origem
+            ], $_SESSION['usuario_id']); // Injeção garantida pela sessão
+
+            http_response_code(201);
+            echo json_encode(['status' => 'success', 'message' => 'Lead registrado com sucesso.']);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Falha de gravação no banco de dados.']);
+        }
+        exit;
+    }
 }

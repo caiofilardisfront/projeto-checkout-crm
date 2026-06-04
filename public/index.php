@@ -6,7 +6,7 @@ if (php_sapi_name() === 'cli-server') {
     $path = realpath(__DIR__ . parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
     // Permite que o servidor entregue arquivos estáticos (CSS, JS) diretamente
     if ($path && is_file($path)) {
-        return false; 
+        return false;
     }
 }
 
@@ -27,6 +27,7 @@ spl_autoload_register(function ($class) {
 use Src\Controllers\AuthController;
 use Src\Controllers\LeadController;
 use Src\Middleware\AuthMiddleware;
+use Src\Controllers\ContratoController;
 
 // 3. Captura Universal de URL (Suporta .htaccess em Produção ou Built-in Server em Homologação)
 if (isset($_GET['url'])) {
@@ -68,11 +69,19 @@ switch ($url) {
         break;
 
     case 'api/leads':
-        (new LeadController())->index();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            (new LeadController())->store();
+        } else {
+            (new LeadController())->index();
+        }
         break;
 
     case 'api/leads/delegar':
         (new LeadController())->delegarLead();
+        break;
+
+    case 'api/contratos/upload':
+        (new ContratoController())->upload();
         break;
 
     // ==========================================
