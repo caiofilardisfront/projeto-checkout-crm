@@ -111,11 +111,17 @@ document.addEventListener('DOMContentLoaded', () => {
 async function salvarNovoLead(event) {
     event.preventDefault();
 
+    // Pega apenas os números digitados (ex: "R$ 2.100,50" vira "210050")
+    const valorRaw = document.getElementById('leadValor').value.replace(/\D/g, '');
+
     const payload = {
         nome_contato: document.getElementById('leadNome').value.trim(),
         nome_agencia: document.getElementById('leadAgencia').value.trim(),
         telefone: document.getElementById('leadTelefone').value.trim(),
-        valor_proposta: parseFloat(document.getElementById('leadValor').value) || 0,
+
+        // Divide por 100 para transformar centavos em Float com casa decimal real para o banco (ex: 2100.50)
+        valor_proposta: valorRaw ? (parseFloat(valorRaw) / 100) : 0,
+
         origem: document.getElementById('leadOrigem').value
     };
 
@@ -209,3 +215,41 @@ async function realizarUploadContrato(event) {
         submitBtn.innerText = 'ENVIAR CONTRATO';
     }
 }
+
+// ==========================================
+// MÁSCARAS DE INPUT (TELEFONE E MOEDA)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const inputTelefone = document.getElementById('leadTelefone');
+    const inputValor = document.getElementById('leadValor');
+
+    if (inputTelefone) {
+        inputTelefone.addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é número
+
+            // Máscara dinâmica para 10 ou 11 dígitos: (XX) XXXX-XXXX ou (XX) XXXXX-XXXX
+            value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
+            value = value.replace(/(\d)(\d{4})$/, '$1-$2');
+
+            e.target.value = value;
+        });
+    }
+
+    if (inputValor) {
+        inputValor.addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, ''); // Remove letras e caracteres
+
+            if (value === '') {
+                e.target.value = '';
+                return;
+            }
+
+            // Converte para centavos e aplica a formatação BRL
+            value = (parseInt(value, 10) / 100).toFixed(2) + '';
+            value = value.replace('.', ',');
+            value = value.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+
+            e.target.value = 'R$ ' + value;
+        });
+    }
+});

@@ -28,6 +28,7 @@ use Src\Controllers\AuthController;
 use Src\Controllers\LeadController;
 use Src\Middleware\AuthMiddleware;
 use Src\Controllers\ContratoController;
+use Src\Controllers\PaymentController;
 
 // 3. Captura Universal de URL (Suporta .htaccess em Produção ou Built-in Server em Homologação)
 if (isset($_GET['url'])) {
@@ -39,12 +40,24 @@ $url = rtrim($url, '/');
 
 // 4. Roteamento Estrito protegido
 switch ($url) {
-    // ==========================================
+    /// ==========================================
     // ROTAS DE VIEW (HTML)
     // ==========================================
     case '':
     case 'login':
         require __DIR__ . '/../views/auth/login.php';
+        break;
+
+    case 'checkout':
+        require __DIR__ . '/../views/checkout/form.php';
+        break;
+
+    case 'checkout/sucesso':
+        require __DIR__ . '/../views/checkout/success.php';
+        break;
+
+    case 'checkout/erro':
+        require __DIR__ . '/../views/checkout/erro.php';
         break;
 
     case 'dashboard':
@@ -82,6 +95,10 @@ switch ($url) {
 
     case 'api/contratos/upload':
         (new ContratoController())->upload();
+        break;
+    
+    case 'api/checkout/processar':
+        (new PaymentController())->processarCheckout();
         break;
 
     // ==========================================

@@ -181,7 +181,7 @@
     <div class="d-flex">
         <!-- Roteamento Visual e Controles de View -->
         <div class="sidebar" style="width: 260px;">
-            <div class="sidebar-brand">CRM<span>CHECKOUT</span></div>
+            <div class="sidebar-brand">JONES<span>GROUP</span></div>
             <div class="p-3 mt-2">
                 <ul class="nav flex-column gap-1">
                     <li class="nav-item">
@@ -260,11 +260,11 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label text-muted fw-bold" style="font-size: 0.85rem;">TELEFONE / WHATSAPP</label>
-                                <input type="text" class="form-control" id="leadTelefone">
+                                <input type="tel" class="form-control" id="leadTelefone" maxlength="15" placeholder="(00) 00000-0000">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label text-muted fw-bold" style="font-size: 0.85rem;">VALOR PROPOSTO (R$)</label>
-                                <input type="number" step="0.01" class="form-control" id="leadValor" placeholder="2100.00">
+                                <input type="text" class="form-control" id="leadValor" placeholder="R$ 0,00">
                             </div>
                         </div>
                         <div class="mb-4">
