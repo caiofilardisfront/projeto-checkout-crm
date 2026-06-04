@@ -1,0 +1,6 @@
+# Arquivo: /public/.htaccess
+# Redireciona todas as requisições para o index.php, garantindo URL amigável e protegendo a estrutura de pastas.
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
