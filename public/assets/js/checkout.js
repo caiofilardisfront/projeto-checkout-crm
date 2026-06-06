@@ -1,56 +1,83 @@
 // Arquivo: /assets/js/checkout.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    const formCheckout = document.getElementById('formCheckout');
-    
-    if (formCheckout) {
-        formCheckout.addEventListener('submit', async function(e) {
+    const form = document.getElementById('formCheckoutForm');
+    const passo1 = document.getElementById('passo1_formulario');
+    const passo2 = document.getElementById('passo2_pagamento');
+    const containerBrick = document.getElementById('paymentBrick_container');
+
+    if (form) {
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const btn = document.getElementById('btnProsseguir');
+            // 1. Captura os dados do formulário
+            const email = document.getElementById('clienteEmail').value.trim();
+            const documento = document.getElementById('clienteDocumento').value.replace(/\D/g, ''); // Apenas números
             
-            // PREVENÇÃO DE CLIQUE DUPLO: Bloqueio da UI
-            btn.disabled = true;
-            btn.innerText = 'Processando Ambiente Seguro...';
-
-            // Resgata o ID de origem passado via query string (Ex: /checkout?lead_id=5)
             const urlParams = new URLSearchParams(window.location.search);
             const leadId = urlParams.get('lead_id') || 0;
 
-            const payload = {
-                nome: document.getElementById('clienteNome').value.trim(),
-                email: document.getElementById('clienteEmail').value.trim(),
-                telefone: document.getElementById('clienteTelefone').value.trim(),
-                documento: document.getElementById('clienteDocumento').value.trim(),
-                lead_id: parseInt(leadId)
-            };
+            // 2. Transição visual (Oculta Passo 1, Mostra Passo 2)
+            passo1.style.display = 'none';
+            passo2.style.display = 'block';
 
-            try {
-                const response = await fetch('/api/checkout/processar', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+            // 3. Lê a chave e inicializa o Mercado Pago
+            const publicKey = passo2.getAttribute('data-public-key');
+            const mp = new MercadoPago(publicKey, { locale: 'pt-BR' });
+            const bricksBuilder = mp.bricks();
+
+            const settings = {
+                initialization: {
+                    amount: 2100.00,
+                    payer: {
+                        email: email, // Injeta o e-mail digitado no passo anterior
+                        identification: {
+                            type: documento.length > 11 ? 'CNPJ' : 'CPF',
+                            number: documento // Injeta o CPF digitado no passo anterior
+                        }
+                    }
+                },
+                customization: {
+                    visual: {
+                        style: { theme: 'bootstrap', customVariables: { textPrimaryColor: '#1A3A52', baseColor: '#4FD1C5' } }
                     },
-                    body: JSON.stringify(payload)
-                });
+                    paymentMethods: { creditCard: "all", pix: "all" }
+                },
+                callbacks: {
+                    onReady: () => { console.log('Checkout Transparente Carregado'); },
+                    onSubmit: ({ selectedPaymentMethod, formData }) => {
+                        // Anexa o ID do Lead para o backend
+                        formData.lead_id = parseInt(leadId);
 
-                const result = await response.json();
-
-                if (response.ok && result.status === 'success' && result.init_point) {
-                    // Redireciona o cliente para o ambiente criptografado do Mercado Pago
-                    window.location.href = result.init_point;
-                } else {
-                    alert(result.message || 'Falha ao engatilhar integração de pagamento.');
-                    btn.disabled = false;
-                    btn.innerText = 'Prosseguir para Pagamento Seguro';
+                        return new Promise((resolve, reject) => {
+                            fetch("/api/checkout/processar", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(formData),
+                            })
+                            .then((response) => response.json())
+                            .then((result) => {
+                                if (result.status === 'success') {
+                                    resolve();
+                                    window.location.href = '/checkout/sucesso';
+                                } else {
+                                    reject();
+                                    alert(result.message || 'Transação recusada.');
+                                }
+                            })
+                            .catch(() => {
+                                reject();
+                                alert('Erro de comunicação com o banco.');
+                            });
+                        });
+                    },
+                    onError: (error) => { console.error('Erro MP:', error); }
                 }
-            } catch (error) {
-                console.error('Erro de rede:', error);
-                alert('Servidor indisponível. Verifique sua conexão e tente novamente.');
-                btn.disabled = false;
-                btn.innerText = 'Prosseguir para Pagamento Seguro';
-            }
+            };
+            
+            // Renderiza o Brick
+            containerBrick.innerHTML = ''; 
+            window.paymentBrickController = await bricksBuilder.create('payment', 'paymentBrick_container', settings);
         });
     }
 });

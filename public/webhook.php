@@ -74,7 +74,7 @@ if ($dadosPayload['action'] === 'payment.created' || $dadosPayload['action'] ===
                     $db = Database::getConnection();
                     
                     // Atualiza o Lead para "Fechado"
-                    $stmt = $db->prepare("UPDATE leads SET status_funil = 'Fechado' WHERE id = :id");
+                    $stmt = $db->prepare("UPDATE leads SET status = 'fechado' WHERE id = :id");
                     $stmt->execute(['id' => $idLead]);
                     
                     // Aqui você também pode dar baixa na tabela de pagamentos, se necessário

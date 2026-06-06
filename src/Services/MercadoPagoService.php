@@ -12,7 +12,6 @@ class MercadoPagoService
 
     public function __construct()
     {
-        // Captura o token isolado no ambiente do servidor (.env ou config do SO)
         $this->accessToken = getenv('MP_ACCESS_TOKEN') ?: '';
 
         if (empty($this->accessToken)) {
@@ -22,8 +21,7 @@ class MercadoPagoService
     }
 
     /**
-     * Comunica estritamente com o endpoint /checkout/preferences via cURL nativo.
-     * Rejeita o uso de SDKs pesados em prol de performance e controle de rede.
+     * Cria a preferência do Checkout Pro e gera o link init_point
      */
     public function criarPreferencia(array $payload): array
     {
@@ -36,15 +34,14 @@ class MercadoPagoService
             'Authorization: Bearer ' . $this->accessToken
         ];
 
-        // Configuração de rede blindada
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_POSTFIELDS     => json_encode($payload),
-            CURLOPT_SSL_VERIFYPEER => true, // Prevenção contra ataques Man-in-the-Middle (MITM)
+            CURLOPT_SSL_VERIFYPEER => true, 
             CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_TIMEOUT        => 15    // Quebra a requisição caso o gateway esteja offline, evitando travamento do CRM
+            CURLOPT_TIMEOUT        => 15    
         ]);
 
         $response = curl_exec($ch);
@@ -60,12 +57,40 @@ class MercadoPagoService
 
         $decodedResponse = json_decode($response, true);
 
-        // O Mercado Pago responde 200 ou 201 para sucesso na criação da preferência [1]
         if ($httpCode !== 200 && $httpCode !== 201) {
             error_log("CRM-CHECKOUT MP API ERROR [$httpCode]: " . $response);
-            throw new Exception("O Mercado Pago rejeitou a estrutura de cobrança. Valide os logs do servidor.");
+            throw new Exception("O Mercado Pago rejeitou a estrutura de cobrança. Valide os logs.");
         }
 
         return $decodedResponse;
+    }
+
+    /**
+     * Consulta as informações do pagamento recebido no Webhook
+     */
+    public function consultarPagamento(string $idPagamento): array
+    {
+        $endpoint = $this->baseUrl . "/v1/payments/" . $idPagamento;
+
+        $ch = curl_init($endpoint);
+        $headers = ['Authorization: Bearer ' . $this->accessToken];
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_TIMEOUT        => 10
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200) {
+            error_log("CRM-CHECKOUT MP PAYMENTS CONSULTA ERROR [$httpCode]: " . $response);
+            throw new Exception("Erro ao consultar metadados do recurso de pagamento.");
+        }
+
+        return json_decode($response, true);
     }
 }

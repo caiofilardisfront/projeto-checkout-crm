@@ -1,16 +1,36 @@
 <?php
 // Arquivo: /public/index.php
 
-// 1. Interceptador Estrito para o Servidor Embutido do PHP (Ignorado no Apache)
+// 1. BLINDAGEM DE PRODUÇÃO E PROTEÇÃO DE PAYLOAD (JSON)
+ini_set('display_errors', 0); // Bloqueia Warnings do PHP que quebram a Fetch API
+error_reporting(E_ALL);
+
+// 2. MICRO-PARSER NATIVO DO .ENV (ESSENCIAL PARA O BANCO DE DADOS)
+$envPath = realpath(__DIR__ . '/../.env');
+if ($envPath && file_exists($envPath)) {
+    $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos(trim($line), '#') === 0) continue;
+        if (strpos($line, '=') !== false) {
+            list($name, $value) = explode('=', $line, 2);
+            $name = trim($name);
+            $value = trim($value);
+            putenv(sprintf('%s=%s', $name, $value));
+            $_ENV[$name] = $value;
+            $_SERVER[$name] = $value;
+        }
+    }
+}
+
+// 3. Interceptador Estrito para o Servidor Embutido do PHP
 if (php_sapi_name() === 'cli-server') {
     $path = realpath(__DIR__ . parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-    // Permite que o servidor entregue arquivos estáticos (CSS, JS) diretamente
     if ($path && is_file($path)) {
         return false;
     }
 }
 
-// 2. Autoload manual com Caminhos Absolutos ancorados em __DIR__
+// 4. Autoload manual com Normalização Case-Sensitive (CRÍTICO PARA A HOSTINGER)
 spl_autoload_register(function ($class) {
     if ($class === 'Config\Database') {
         $dbPath = __DIR__ . '/../config/db.php';
@@ -18,7 +38,14 @@ spl_autoload_register(function ($class) {
         return;
     }
 
-    $path = __DIR__ . '/../' . str_replace('\\', '/', $class) . '.php';
+    $classPath = str_replace('\\', '/', $class);
+    
+    // Força o prefixo "Src/" a se tornar "src/" minúsculo para o Linux achar a pasta
+    if (strpos($classPath, 'Src/') === 0) {
+        $classPath = 'src/' . substr($classPath, 4);
+    }
+
+    $path = __DIR__ . '/../' . $classPath . '.php';
     if (file_exists($path)) {
         require_once $path;
     }
@@ -30,7 +57,7 @@ use Src\Middleware\AuthMiddleware;
 use Src\Controllers\ContratoController;
 use Src\Controllers\PaymentController;
 
-// 3. Captura Universal de URL (Suporta .htaccess em Produção ou Built-in Server em Homologação)
+// 5. Captura Universal de URL
 if (isset($_GET['url'])) {
     $url = filter_input(INPUT_GET, 'url', FILTER_SANITIZE_URL) ?? '';
 } else {
@@ -38,9 +65,9 @@ if (isset($_GET['url'])) {
 }
 $url = rtrim($url, '/');
 
-// 4. Roteamento Estrito protegido
+// 6. Roteamento Estrito
 switch ($url) {
-    /// ==========================================
+    // ==========================================
     // ROTAS DE VIEW (HTML)
     // ==========================================
     case '':
@@ -61,7 +88,7 @@ switch ($url) {
         break;
 
     case 'dashboard':
-        AuthMiddleware::handle(); // Bloqueia acesso sem sessão (RLS base)
+        AuthMiddleware::handle(); 
         require __DIR__ . '/../views/dashboard/main.php';
         break;
 
