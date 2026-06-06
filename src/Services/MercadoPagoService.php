@@ -21,7 +21,46 @@ class MercadoPagoService
     }
 
     /**
-     * Cria a preferência do Checkout Pro e gera o link init_point
+     * Processa a cobrança direta via Checkout Transparente (Cartão/Pix)
+     */
+    public function processarPagamento(array $payload): array
+    {
+        $endpoint = $this->baseUrl . '/v1/payments';
+
+        $ch = curl_init($endpoint);
+
+        $headers = [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $this->accessToken,
+            'X-Idempotency-Key: ' . uniqid('crm_pay_', true) // Trava de segurança anti-duplicidade
+        ];
+
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_SSL_VERIFYPEER => true, 
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_TIMEOUT        => 15    
+        ]);
+
+        $response = curl_exec($ch);
+        $curlError = curl_error($ch);
+
+        curl_close($ch);
+
+        if ($curlError) {
+            error_log("CRM-CHECKOUT CURL ERROR: " . $curlError);
+            throw new Exception("Falha de rede na comunicação com o gateway financeiro.");
+        }
+
+        // Devolve o pacote decodificado para o PaymentController analisar aprovação ou recusa
+        return json_decode($response, true) ?: [];
+    }
+
+    /**
+     * Cria a preferência do Checkout Pro e gera o link init_point (Legado/Alternativo)
      */
     public function criarPreferencia(array $payload): array
     {
@@ -66,7 +105,7 @@ class MercadoPagoService
     }
 
     /**
-     * Consulta as informações do pagamento recebido no Webhook
+     * Consulta as informações do pagamento recebido pelo Webhook
      */
     public function consultarPagamento(string $idPagamento): array
     {
