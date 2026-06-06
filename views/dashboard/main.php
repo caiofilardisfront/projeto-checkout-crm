@@ -191,7 +191,7 @@
                         <a class="nav-link" href="/config_pedido">Criar Cobrança</a>
                     </li>
                     <li class="nav-item mt-5">
-                        <button class="btn btn-outline-light w-100 btn-sm" onclick="logout()" style="font-weight: 600; letter-spacing: 1px;">ENCERRAR SESSÃO</button>
+                        <button class="btn btn-outline-light w-100 btn-sm" id="btnSair" style="font-weight: 600; letter-spacing: 1px;">ENCERRAR SESSÃO</button>
                     </li>
                 </ul>
             </div>
@@ -249,6 +249,7 @@
                 </div>
                 <div class="modal-body p-4">
                     <form id="formNovoLead">
+                        <input type="hidden" id="leadIdEdicao" value="">
                         <div class="mb-3">
                             <label class="form-label text-muted fw-bold" style="font-size: 0.85rem;">NOME DO CONTATO</label>
                             <input type="text" class="form-control" id="leadNome" required>

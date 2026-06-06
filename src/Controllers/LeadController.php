@@ -127,4 +127,66 @@ class LeadController
         }
         exit;
     }
+
+    public function update(): void
+    {
+        AuthMiddleware::handle();
+        header('Content-Type: application/json');
+        
+        if ($_SERVER['REQUEST_METHOD'] !== 'PUT' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['status' => 'error', 'message' => 'Método HTTP não permitido.']);
+            exit;
+        }
+
+        $payload = json_decode(file_get_contents('php://input'), true);
+        $idLead = filter_var($payload['id'] ?? 0, FILTER_VALIDATE_INT);
+        
+        if (!$idLead) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'ID do Lead inválido.']);
+            exit;
+        }
+
+        try {
+            Lead::atualizarLead($idLead, [
+                'nome_contato'   => filter_var($payload['nome_contato'], FILTER_SANITIZE_SPECIAL_CHARS),
+                'nome_agencia'   => filter_var($payload['nome_agencia'], FILTER_SANITIZE_SPECIAL_CHARS),
+                'telefone'       => filter_var($payload['telefone'], FILTER_SANITIZE_SPECIAL_CHARS),
+                'valor_proposta' => (float) ($payload['valor_proposta'] ?? 0)
+            ], $_SESSION['usuario_id']);
+
+            http_response_code(200);
+            echo json_encode(['status' => 'success', 'message' => 'Lead atualizado com segurança.']);
+        } catch (\Exception $e) {
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    public function delete(): void
+    {
+        AuthMiddleware::handle();
+        header('Content-Type: application/json');
+
+        $payload = json_decode(file_get_contents('php://input'), true);
+        $idLead = filter_var($payload['id'] ?? 0, FILTER_VALIDATE_INT);
+
+        if (!$idLead) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'ID do Lead não informado.']);
+            exit;
+        }
+
+        try {
+            Lead::deletarLead($idLead, $_SESSION['usuario_id']);
+            http_response_code(200);
+            echo json_encode(['status' => 'success', 'message' => 'Lead removido da base de dados.']);
+        } catch (\Exception $e) {
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
 }

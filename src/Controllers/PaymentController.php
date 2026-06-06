@@ -8,7 +8,7 @@ use Src\Services\MercadoPagoService;
 class PaymentController
 {
     /**
-     * Processa o formulário de checkout público e gera a URL (init_point) no Mercado Pago.
+     * Processa o formulário de faturamento nativo e gera o link do Checkout Pro
      */
     public function processarCheckout(): void
     {
@@ -22,10 +22,10 @@ class PaymentController
 
         $payload = json_decode(file_get_contents('php://input'), true);
 
-        // Sanitização de entradas do cliente final
+        // Captura e sanitiza os dados vindos do seu formulário intermediário
         $nome = filter_var($payload['nome'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
         $email = filter_var($payload['email'] ?? '', FILTER_SANITIZE_EMAIL);
-        $documento = preg_replace('/\D/', '', $payload['documento'] ?? ''); // Apenas números
+        $documento = preg_replace('/\D/', '', $payload['documento'] ?? ''); // Remove pontos e traços
         $leadId = filter_var($payload['lead_id'] ?? 0, FILTER_VALIDATE_INT);
 
         if (!$nome || !$email || !$leadId) {
@@ -37,11 +37,11 @@ class PaymentController
         try {
             $mpService = new MercadoPagoService();
             
-            // Definição dinâmica do Host para URLs de retorno
+            // Definição dinâmica do Host para URLs de retorno na Hostinger
             $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https://' : 'http://';
             $baseUrl = $protocol . ($_SERVER['HTTP_HOST'] ?? 'localhost:8000');
 
-            // Montagem Estrita do Payload de Preferência
+            // Montagem Estrutural da Preferência do Checkout Pro
             $preferencia = [
                 'items' => [
                     [
@@ -49,7 +49,7 @@ class PaymentController
                         'title' => 'CRM Comercial Completo + Treinamento SDR + Manutenção',
                         'quantity' => 1,
                         'currency_id' => 'BRL',
-                        'unit_price' => 2100.00 // CRÍTICO: Preço definido obrigatoriamente no servidor
+                        'unit_price' => 2100.00 // Preço travado no backend contra fraudes de console
                     ]
                 ],
                 'payer' => [
@@ -66,15 +66,17 @@ class PaymentController
                     'pending' => $baseUrl . '/checkout/erro'
                 ],
                 'auto_return' => 'approved',
-                'external_reference' => (string) $leadId // Vincula a transação MP ao ID do banco para o Webhook
+                'external_reference' => (string) $leadId, // Vincula a transação ao ID do banco para o Webhook
+                'notification_url' => $baseUrl . '/webhook.php' // Avisa o Mercado Pago onde entregar a confirmação
             ];
 
+            // Aciona o método de criação de preferência do Service
             $response = $mpService->criarPreferencia($preferencia);
 
             http_response_code(200);
             echo json_encode([
                 'status' => 'success',
-                'init_point' => $response['init_point'] // Retorna a URL segura gerada pelo gateway
+                'init_point' => $response['init_point'] // Entrega a URL oficial do MP para o javascript redirecionar
             ]);
         } catch (\Exception $e) {
             http_response_code(500);

@@ -116,4 +116,42 @@ class Lead
             throw $e;
         }
     }
+
+    /**
+     * Atualiza os dados do Lead garantindo o Isolamento (RLS).
+     */
+    public static function atualizarLead(int $idLead, array $dados, int $idUsuario): bool
+    {
+        if (!self::checkAcessoLead($idLead, $idUsuario)) {
+            throw new \Exception("Violação de RLS: Acesso negado para edição.");
+        }
+
+        $pdo = Database::getConnection();
+        $sql = "UPDATE leads SET nome_contato = :nome_contato, nome_agencia = :nome_agencia, 
+                telefone = :telefone, valor_proposta = :valor_proposta 
+                WHERE id = :id";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([
+            'nome_contato' => $dados['nome_contato'],
+            'nome_agencia' => $dados['nome_agencia'],
+            'telefone'     => $dados['telefone'],
+            'valor_proposta'=> $dados['valor_proposta'],
+            'id'           => $idLead
+        ]);
+    }
+
+    /**
+     * Deleta fisicamente o Lead e depende do ON DELETE CASCADE para limpar atribuições.
+     */
+    public static function deletarLead(int $idLead, int $idUsuario): bool
+    {
+        if (!self::checkAcessoLead($idLead, $idUsuario)) {
+            throw new \Exception("Violação de RLS: Acesso negado para exclusão.");
+        }
+
+        $pdo = Database::getConnection();
+        $stmt = $pdo->prepare("DELETE FROM leads WHERE id = :id");
+        return $stmt->execute(['id' => $idLead]);
+    }
 }

@@ -2,6 +2,14 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchLeadsAtribuidos();
+    // Novo ouvinte seguro para o botão de sair
+    const btnSair = document.getElementById('btnSair');
+    if (btnSair) {
+        btnSair.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+    }
 });
 
 /**
@@ -64,15 +72,18 @@ function renderizarTabela(leads) {
             currency: 'BRL'
         });
 
+        // Correção: Apenas uma tag <td> para as ações, contendo todos os 4 botões!
         tr.innerHTML = `
             <td class="fw-bold">${lead.nome_contato}</td>
             <td>${lead.nome_agencia}</td>
             <td>${lead.telefone}</td>
             <td class="fw-bold" style="color: var(--tiffany-blue);">${valorFormatado}</td>
             <td><span class="badge-status badge-${lead.status}">${formatarStatusBadge(lead.status)}</span></td>
-            <td class="text-end">
-                <button class="btn btn-sm btn-outline-secondary fw-bold me-2" onclick="abrirModalUpload(${lead.id})" title="Anexar Contrato PDF">📄</button>
-                <button class="btn-action" onclick="rotearConfiguracaoPedido(${lead.id})">Configurar Pagamento</button>
+            <td class="text-end" style="white-space: nowrap;">
+                <button class="btn btn-sm btn-outline-secondary fw-bold me-1" onclick="abrirModalUpload(${lead.id})" title="Anexar Contrato PDF">📄</button>
+                <button class="btn btn-sm btn-outline-info fw-bold me-1" onclick="editarLead(${lead.id}, '${lead.nome_contato}', '${lead.nome_agencia}', '${lead.telefone}', ${lead.valor_proposta}, '${lead.origem}')" title="Editar Lead">✏️</button>
+                <button class="btn btn-sm btn-outline-danger fw-bold me-2" onclick="deletarLead(${lead.id})" title="Excluir Lead">🗑️</button>
+                <button class="btn-action" onclick="rotearConfiguracaoPedido(${lead.id})">Cobrar</button>
             </td>
         `;
         tbody.appendChild(tr);
@@ -108,57 +119,104 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+function editarLead(id, nome, agencia, telefone, valor, origem) {
+    // Injeta os valores atuais da linha nos inputs do Modal
+    document.getElementById('leadIdEdicao').value = id;
+    document.getElementById('leadNome').value = nome;
+    document.getElementById('leadAgencia').value = agencia;
+    document.getElementById('leadTelefone').value = telefone;
+
+    // Formatação monetária reversa para o input
+    const valorFormatado = (parseFloat(valor)).toFixed(2).replace('.', ',');
+    document.getElementById('leadValor').value = 'R$ ' + valorFormatado.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+
+    document.getElementById('leadOrigem').value = origem;
+    document.getElementById('leadOrigem').disabled = true; // Origem não se altera
+
+    // Altera títulos e comportamento do modal
+    document.querySelector('#modalNovoLead .modal-title').innerText = 'Editar Lead Executivo';
+    const submitBtn = document.querySelector('#formNovoLead button[type="submit"]');
+    submitBtn.innerText = 'ATUALIZAR LEAD';
+
+    const modal = new bootstrap.Modal(document.getElementById('modalNovoLead'));
+    modal.show();
+}
+
+// Substitua sua função salvarNovoLead() atual por esta (híbrida para Criar/Atualizar):
 async function salvarNovoLead(event) {
     event.preventDefault();
-
-    // Pega apenas os números digitados (ex: "R$ 2.100,50" vira "210050")
     const valorRaw = document.getElementById('leadValor').value.replace(/\D/g, '');
+    const idEdicao = document.getElementById('leadIdEdicao') ? document.getElementById('leadIdEdicao').value : '';
 
     const payload = {
+        id: idEdicao ? parseInt(idEdicao) : null,
         nome_contato: document.getElementById('leadNome').value.trim(),
         nome_agencia: document.getElementById('leadAgencia').value.trim(),
         telefone: document.getElementById('leadTelefone').value.trim(),
-
-        // Divide por 100 para transformar centavos em Float com casa decimal real para o banco (ex: 2100.50)
         valor_proposta: valorRaw ? (parseFloat(valorRaw) / 100) : 0,
-
         origem: document.getElementById('leadOrigem').value
     };
 
+    const isUpdate = !!idEdicao;
+    const endpoint = isUpdate ? '/api/leads/atualizar' : '/api/leads';
+    const method = isUpdate ? 'PUT' : 'POST';
+
     const submitBtn = event.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
-    submitBtn.innerText = 'SALVANDO...';
+    submitBtn.innerText = 'PROCESSANDO...';
 
     try {
-        const response = await fetch('/api/leads', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
+        const response = await fetch(endpoint, {
+            method: method,
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify(payload)
         });
 
         const result = await response.json();
 
-        if (response.status === 201 && result.status === 'success') {
-            // Fecha modal Bootstrap nativamente
+        if ((response.status === 201 || response.status === 200) && result.status === 'success') {
             const modalElement = document.getElementById('modalNovoLead');
-            const modalInstance = bootstrap.Modal.getInstance(modalElement);
-            modalInstance.hide();
+            bootstrap.Modal.getInstance(modalElement).hide();
 
-            // Limpa form e recarrega dados respeitando o RLS
             event.target.reset();
+            if (document.getElementById('leadIdEdicao')) document.getElementById('leadIdEdicao').value = '';
+            document.querySelector('#modalNovoLead .modal-title').innerText = 'Adicionar Novo Lead';
+            document.getElementById('leadOrigem').disabled = false;
+
             fetchLeadsAtribuidos();
         } else {
-            alert(result.message || 'Erro ao registrar lead.');
+            alert(result.message || 'Erro ao processar lead.');
         }
     } catch (error) {
-        console.error('Erro de requisição:', error);
+        console.error('Erro:', error);
         alert('Falha na comunicação com o servidor.');
     } finally {
         submitBtn.disabled = false;
         submitBtn.innerText = 'SALVAR LEAD';
+    }
+}
+
+async function deletarLead(idLead) {
+    if (!confirm("Ação destrutiva. Tem certeza que deseja excluir este Lead do CRM?")) return;
+
+    try {
+        const response = await fetch('/api/leads/deletar', {
+            method: 'POST', // ou DELETE dependendo do roteador
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ id: idLead })
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            fetchLeadsAtribuidos(); // Recarrega a tabela imediatamente via RLS
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        console.error("Erro ao deletar lead:", error);
     }
 }
 
@@ -215,6 +273,8 @@ async function realizarUploadContrato(event) {
         submitBtn.innerText = 'ENVIAR CONTRATO';
     }
 }
+
+
 
 // ==========================================
 // MÁSCARAS DE INPUT (TELEFONE E MOEDA)

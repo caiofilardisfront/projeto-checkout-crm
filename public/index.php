@@ -93,6 +93,14 @@ switch ($url) {
         (new LeadController())->delegarLead();
         break;
 
+    case 'api/leads/atualizar':
+        (new LeadController())->update();
+        break;
+
+    case 'api/leads/deletar':
+        (new LeadController())->delete();
+        break;
+
     case 'api/contratos/upload':
         (new ContratoController())->upload();
         break;

@@ -142,7 +142,7 @@ $linkCheckout = $baseUrl . '/checkout?lead_id=' . $leadId;
 
                         <div class="link-box">
                             <input type="text" id="checkoutUrl" value="<?= $linkCheckout ?>" readonly>
-                            <button class="btn-copy" onclick="copiarLink()">COPIAR LINK PARA WHATSAPP</button>
+                            <button class="btn-copy" id="btnCopiarLink">COPIAR LINK PARA WHATSAPP</button>
                         </div>
                     </div>
                 </div>
@@ -150,24 +150,6 @@ $linkCheckout = $baseUrl . '/checkout?lead_id=' . $leadId;
         </div>
     </div>
 </div>
-
-<script>
-    function copiarLink() {
-        const input = document.getElementById('checkoutUrl');
-        input.select();
-        input.setSelectionRange(0, 99999); // Mobile compliance
-        navigator.clipboard.writeText(input.value).then(() => {
-            const btn = document.querySelector('.btn-copy');
-            btn.innerText = 'LINK COPIADO!';
-            btn.style.backgroundColor = '#1A3A52';
-            btn.style.color = '#FFFFFF';
-            setTimeout(() => {
-                btn.innerText = 'COPIAR LINK PARA WHATSAPP';
-                btn.style.backgroundColor = 'var(--tiffany-blue)';
-                btn.style.color = 'var(--deep-blue)';
-            }, 3000);
-        });
-    }
-</script>
+<script src="/assets/js/config_pedido.js"></script>
 </body>
 </html>
