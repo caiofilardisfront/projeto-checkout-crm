@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     visual: {
                         style: { theme: 'bootstrap', customVariables: { textPrimaryColor: '#1A3A52', baseColor: '#4FD1C5' } }
                     },
-                    paymentMethods: { creditCard: "all", pix: "all" }
+                    paymentMethods: { creditCard: "all", bankTransfer: "all" }
                 },
                 callbacks: {
                     onReady: () => { console.log('Checkout Transparente Carregado'); },
@@ -61,7 +61,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             .then((result) => {
                                 if (result.status === 'success') {
                                     resolve();
-                                    window.location.href = '/checkout/sucesso';
+                                    
+                                    // Se a API retornou o Link do Pix (QR Code), redireciona para ele
+                                    if (result.ticket_url) {
+                                        window.location.href = result.ticket_url;
+                                    } else {
+                                        // Se for Cartão de Crédito, segue para a sua tela de sucesso normal
+                                        window.location.href = '/checkout/sucesso';
+                                    }
                                 } else {
                                     reject();
                                     alert(result.message || 'Transação recusada.');

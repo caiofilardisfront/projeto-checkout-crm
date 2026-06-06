@@ -125,16 +125,15 @@ $valorFormatado = number_format($valorProposta, 2, ',', '.');
                 </div>
             </div>
 
-            <!-- Painel Lateral (Resumo Dinâmico) -->
             <!-- Painel Lateral (Resumo com Serviços Fixos e Total Dinâmico) -->
             <div class="col-lg-5">
                 <div class="checkout-card h-100">
                     <h5 class="mb-4 fw-bold" style="color: var(--deep-blue);">RESUMO DA CONTRATAÇÃO</h5>
 
                     <!-- Serviços ancorados visualmente -->
-                    <div class="d-flex justify-content-between mb-2 fw-semibold"><span>Sistema CRM Comercial Completo</span><span>R$ 1.200,00</span></div>
-                    <div class="d-flex justify-content-between mb-2 fw-semibold"><span>Treinamento SDR Especializado</span><span>R$ 500,00</span></div>
-                    <div class="d-flex justify-content-between mb-3 fw-semibold"><span>Manutenção e Hospedagem</span><span>R$ 400,00</span></div>
+                    <div class="d-flex justify-content-between mb-2 fw-semibold"><span>Sistema CRM Comercial Completo</span><span>R$ 1.000,00</span></div>
+                    <div class="d-flex justify-content-between mb-2 fw-semibold"><span>Treinamento SDR Especializado</span><span>R$ 800,00</span></div>
+                    <div class="d-flex justify-content-between mb-3 fw-semibold"><span>Manutenção e Hospedagem</span><span>R$ 250,00</span></div>
 
                     <hr>
 

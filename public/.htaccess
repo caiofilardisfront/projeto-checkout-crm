@@ -1,6 +1,15 @@
 # Arquivo: /public/.htaccess
-# Redireciona todas as requisições para o index.php, garantindo URL amigável e protegendo a estrutura de pastas.
 RewriteEngine On
+
+# 1. CRÍTICO: Informa ao Apache qual é a base real para URLs com barra (ex: api/login)
+RewriteBase /public/
+
+# 2. Desativa a "adivinhação" de pastas da Hostinger que conflita com rotas API
+Options -MultiViews
+
+# 3. Libera acesso direto a arquivos reais (CSS, JS, Imagens, PDFs)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
+
+# 4. Captura rotas virtuais e injeta silenciosamente no PHP
 RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]

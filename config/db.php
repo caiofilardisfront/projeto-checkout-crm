@@ -18,17 +18,17 @@ class Database
 
     /**
      * Retorna a instância única da conexão PDO.
-     * 
+     *
      * @return PDO
      */
     public static function getConnection(): PDO
     {
         if (self::$instance === null) {
-            // Variáveis de ambiente provenientes do arquivo .env [1]
+            // Variáveis de ambiente provenientes do arquivo .env com a sintaxe corrigida
             $host = getenv('DB_HOST') ?: 'localhost';
-            $db   = getenv('DB_NAME') ?: 'crm_checkout';
-            $user = getenv('DB_USER') ?: 'root';
-            $pass = getenv('DB_PASS') ?: '';
+            $db   = getenv('DB_NAME') ?: 'u475511250_crm_checkout';
+            $user = getenv('DB_USER') ?: 'u475511250_crm_checkout'; // ASPA CORRIGIDA
+            $pass = getenv('DB_PASS') ?: '#F0rt&5252@!';
             $charset = 'utf8mb4';
 
             $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
@@ -46,8 +46,8 @@ class Database
             } catch (PDOException $e) {
                 // Loga a string de erro real no servidor para o sysadmin, omitindo da interface
                 error_log("CRM-CHECKOUT DB FATAL ERROR: " . $e->getMessage());
-
-                // Retorna apenas JSON limpo conforme regra arquitetural [2]
+                
+                // Retorna apenas JSON limpo conforme regra arquitetural
                 http_response_code(500);
                 header('Content-Type: application/json');
                 echo json_encode([
@@ -57,7 +57,6 @@ class Database
                 exit;
             }
         }
-
         return self::$instance;
     }
 }

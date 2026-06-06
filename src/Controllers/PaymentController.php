@@ -29,7 +29,7 @@ class PaymentController
 
         try {
             // BUSCA DINÂMICA: Lê o valor exato da proposta no Banco de Dados
-            $pdo = Database::getConnection();
+            $pdo = \Config\Database::getConnection();
             $stmt = $pdo->prepare("SELECT valor_proposta FROM leads WHERE id = :id LIMIT 1");
             $stmt->execute(['id' => $leadId]);
             $valorDinamico = (float) $stmt->fetchColumn();
@@ -40,7 +40,7 @@ class PaymentController
                 exit;
             }
 
-            $mpService = new MercadoPagoService();
+            $mpService = new \Src\Services\MercadoPagoService();
             unset($payload['lead_id']);
 
             $payload['external_reference'] = (string) $leadId;
@@ -55,7 +55,14 @@ class PaymentController
 
             if (in_array($statusPagamento, ['approved', 'in_process', 'pending'])) {
                 http_response_code(200);
-                echo json_encode(['status' => 'success']);
+                
+                // Mapeia a URL oficial do QR Code caso a transação seja Pix
+                $ticketUrl = $response['point_of_interaction']['transaction_data']['ticket_url'] ?? null;
+
+                echo json_encode([
+                    'status' => 'success',
+                    'ticket_url' => $ticketUrl
+                ]);
             } else {
                 http_response_code(400);
                 $detalhe = $response['status_detail'] ?? 'recusado pela operadora';

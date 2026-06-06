@@ -1,0 +1,8 @@
+RewriteEngine On
+
+# 1. Protege suas pastas sensíveis (Agora com a barra '/' para exigir que seja o diretório exato)
+RewriteRule ^(\.env|config/|src/|views/|contracts/) - [F,L,NC]
+
+# 2. Redireciona tudo invisivelmente para a pasta public
+RewriteCond %{REQUEST_URI} !^/public/
+RewriteRule ^(.*)$ public/$1 [L]
