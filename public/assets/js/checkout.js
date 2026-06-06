@@ -23,17 +23,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 3. Lê a chave e inicializa o Mercado Pago
             const publicKey = passo2.getAttribute('data-public-key');
+            const valorDinamico = parseFloat(passo2.getAttribute('data-amount')) || 0;
+
             const mp = new MercadoPago(publicKey, { locale: 'pt-BR' });
             const bricksBuilder = mp.bricks();
 
             const settings = {
                 initialization: {
-                    amount: 2100.00,
+                    amount: valorDinamico, // O valor dinâmico entra aqui!
                     payer: {
-                        email: email, // Injeta o e-mail digitado no passo anterior
+                        email: email, 
                         identification: {
                             type: documento.length > 11 ? 'CNPJ' : 'CPF',
-                            number: documento // Injeta o CPF digitado no passo anterior
+                            number: documento 
                         }
                     }
                 },
