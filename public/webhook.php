@@ -21,8 +21,11 @@ if ($envPath && file_exists($envPath)) {
 // Carrega as classes necessárias da sua arquitetura
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../src/Services/MercadoPagoService.php';
+require_once __DIR__ . '/../src/Models/ServicoContratado.php'; // <-- INJETE ESTA LINHA
+
 use Config\Database;
 use Src\Services\MercadoPagoService;
+use Src\Models\ServicoContratado;
 
 // ========================================================
 // PASSO 1 E 2: RECEBER DADOS E SEGURANÇA (TAREFA 4.4)
@@ -44,7 +47,7 @@ if (empty($dadosPayload) || !isset($dadosPayload['action'])) {
 
 // Verifica se a ação é sobre um pagamento que acabou de ser criado ou atualizado
 if ($dadosPayload['action'] === 'payment.created' || $dadosPayload['action'] === 'payment.updated') {
-    
+
     // Pega o ID do pagamento enviado no pacote
     $idPagamento = $dadosPayload['data']['id'] ?? null;
 
@@ -53,34 +56,42 @@ if ($dadosPayload['action'] === 'payment.created' || $dadosPayload['action'] ===
             // ========================================================
             // PASSO 3: O DETETIVE - CONSULTAR STATUS (TAREFA 4.5)
             // ========================================================
-            
+
             // Instancia o serviço que você criou
             $mpService = new MercadoPagoService();
-            
+
             // Faz a requisição oficial cURL GET para /v1/payments/{id}
             $dadosPagamento = $mpService->consultarPagamento($idPagamento);
-            
+
             // Verifica se o status oficial é "approved" (Aprovado)
             if (isset($dadosPagamento['status']) && $dadosPagamento['status'] === 'approved') {
-                
+
                 // Pega o ID do Lead que salvamos lá trás no "external_reference"
                 $idLead = $dadosPagamento['external_reference'] ?? null;
-                
+
                 if ($idLead) {
                     // ========================================================
                     // PASSO 4: ATUALIZAR O BANCO DE DADOS
                     // ========================================================
-                    
+
                     $db = Database::getConnection();
-                    
-                    // Atualiza o Lead para "Fechado"
+
+                    // Atualiza o Lead para "Fechado" no Funil
                     $stmt = $db->prepare("UPDATE leads SET status = 'fechado' WHERE id = :id");
                     $stmt->execute(['id' => $idLead]);
-                    
-                    // Aqui você também pode dar baixa na tabela de pagamentos, se necessário
-                    // $stmtPgto = $db->prepare("UPDATE pagamentos SET status = 'pago' WHERE lead_id = :id");
-                    // $stmtPgto->execute(['id' => $idLead]);
-                    
+
+                    // Insere a transação financeira para cálculo de Tempo Médio e Faturamento
+                    $stmtPgto = $db->prepare("INSERT INTO pagamentos (id_lead, id_transacao_gateway, metodo_pagamento, valor_liquido, status_pagamento, data_pagamento) VALUES (:id_lead, :id_transacao, :metodo, :valor, 'aprovado', NOW())");
+                    $stmtPgto->execute([
+                        'id_lead' => $idLead,
+                        'id_transacao' => (string) $idPagamento,
+                        'metodo' => $dadosPagamento['payment_type_id'] ?? 'checkout_pro',
+                        'valor' => (float) ($dadosPagamento['transaction_amount'] ?? 0)
+                    ]);
+
+                    // Fragmenta o valor de R$ 2.100 nos serviços atômicos
+                    ServicoContratado::registrarPacoteFechado($idLead);
+
                     error_log("CRM-CHECKOUT: Sucesso! Pagamento {$idPagamento} aprovado. Lead {$idLead} fechado.");
                 }
             }
@@ -90,4 +101,3 @@ if ($dadosPayload['action'] === 'payment.created' || $dadosPayload['action'] ===
         }
     }
 }
-?>

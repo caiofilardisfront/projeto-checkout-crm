@@ -39,7 +39,7 @@ spl_autoload_register(function ($class) {
     }
 
     $classPath = str_replace('\\', '/', $class);
-    
+
     // Força o prefixo "Src/" a se tornar "src/" minúsculo para o Linux achar a pasta
     if (strpos($classPath, 'Src/') === 0) {
         $classPath = 'src/' . substr($classPath, 4);
@@ -57,13 +57,20 @@ use Src\Middleware\AuthMiddleware;
 use Src\Controllers\ContratoController;
 use Src\Controllers\PaymentController;
 
-// 5. Captura Universal de URL
-if (isset($_GET['url'])) {
-    $url = filter_input(INPUT_GET, 'url', FILTER_SANITIZE_URL) ?? '';
-} else {
-    $url = ltrim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
-}
+// Substitua o bloco 5 do index.php por este:
+// 5. Captura Universal de URL adaptada para XAMPP
+$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$scriptName = dirname($_SERVER['SCRIPT_NAME']); // Detecta a subpasta local
+
+// Remove o caminho base do projeto da URI para isolar a rota
+$url = str_replace($scriptName, '', $requestUri);
+$url = ltrim($url, '/');
 $url = rtrim($url, '/');
+
+// Se a URL estiver vazia, redireciona para login
+if (empty($url)) {
+    $url = 'login';
+}
 
 // 6. Roteamento Estrito
 switch ($url) {
@@ -88,7 +95,7 @@ switch ($url) {
         break;
 
     case 'dashboard':
-        AuthMiddleware::handle(); 
+        AuthMiddleware::handle();
         require __DIR__ . '/../views/dashboard/main.php';
         break;
 
@@ -128,10 +135,22 @@ switch ($url) {
         (new LeadController())->delete();
         break;
 
+    case 'api/leads/servicos':
+        (new LeadController())->listarServicos();
+        break;
+
+    case 'api/agenda/agendar':
+        (new \Src\Controllers\AgendaController())->store();
+        break;
+
     case 'api/contratos/upload':
         (new ContratoController())->upload();
         break;
-    
+
+    case 'api/dashboard/metricas':
+        (new LeadController())->metricas();
+        break;
+
     case 'api/checkout/processar':
         (new PaymentController())->processarCheckout();
         break;

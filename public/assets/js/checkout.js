@@ -90,3 +90,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ==========================================
+// MÁSCARAS DE INPUT (TELEFONE E CPF/CNPJ)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const inputTelefone = document.getElementById('clienteTelefone');
+    const inputDocumento = document.getElementById('clienteDocumento');
+
+    if (inputTelefone) {
+        inputTelefone.addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é número
+            if (value.length > 11) value = value.substring(0, 11); // Trava em 11 dígitos
+
+            // Máscara: (XX) XXXX-XXXX ou (XX) XXXXX-XXXX
+            value = value.replace(/^(\d{2})(\d)/g, '($1) $2');
+            value = value.replace(/(\d)(\d{4})$/, '$1-$2');
+            e.target.value = value;
+        });
+    }
+
+    if (inputDocumento) {
+        inputDocumento.addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é número
+            if (value.length > 14) value = value.substring(0, 14); // Trava em 14 dígitos (Máximo do CNPJ)
+
+            if (value.length <= 11) {
+                // Máscara de CPF: 000.000.000-00
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d)/, '$1.$2');
+                value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            } else {
+                // Máscara de CNPJ: 00.000.000/0000-00
+                value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+                value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+                value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+                value = value.replace(/(\d{4})(\d)/, '$1-$2');
+            }
+            e.target.value = value;
+        });
+    }
+});

@@ -45,8 +45,13 @@ class PaymentController
 
             $payload['external_reference'] = (string) $leadId;
             $payload['description'] = 'Pagamento de Proposta Comercial - JONES GROUP';
-            $payload['notification_url'] = "https://" . $_SERVER['HTTP_HOST'] . "/webhook.php";
-            
+            // Injeção dinâmica de protocolo (suporta http local e https produção)
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+
+            // Extração do URI base considerando a subpasta do XAMPP
+            $baseDir = dirname($_SERVER['SCRIPT_NAME']);
+            $baseDir = $baseDir === '/' ? '' : $baseDir;
+
             // INJEÇÃO DO VALOR REAL NO MERCADO PAGO
             $payload['transaction_amount'] = $valorDinamico;
 
@@ -55,7 +60,7 @@ class PaymentController
 
             if (in_array($statusPagamento, ['approved', 'in_process', 'pending'])) {
                 http_response_code(200);
-                
+
                 // Mapeia a URL oficial do QR Code caso a transação seja Pix
                 $ticketUrl = $response['point_of_interaction']['transaction_data']['ticket_url'] ?? null;
 
@@ -68,7 +73,6 @@ class PaymentController
                 $detalhe = $response['status_detail'] ?? 'recusado pela operadora';
                 echo json_encode(['status' => 'error', 'message' => "Transação não aprovada ($detalhe)."]);
             }
-
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);

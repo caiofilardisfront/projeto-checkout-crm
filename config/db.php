@@ -26,9 +26,9 @@ class Database
         if (self::$instance === null) {
             // Variáveis de ambiente provenientes do arquivo .env com a sintaxe corrigida
             $host = getenv('DB_HOST') ?: 'localhost';
-            $db   = getenv('DB_NAME') ?: 'u475511250_crm_checkout';
-            $user = getenv('DB_USER') ?: 'u475511250_crm_checkout'; // ASPA CORRIGIDA
-            $pass = getenv('DB_PASS') ?: '#F0rt&5252@!';
+            $db   = getenv('DB_NAME') ?: 'crm_checkout';
+            $user = getenv('DB_USER') ?: 'root'; // ASPA CORRIGIDA
+            $pass = getenv('DB_PASS') ?: '';
             $charset = 'utf8mb4';
 
             $dsn = "mysql:host=$host;dbname=$db;charset=$charset";

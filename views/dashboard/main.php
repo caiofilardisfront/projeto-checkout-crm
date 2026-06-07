@@ -235,6 +235,56 @@
                     </table>
                 </div>
             </div>
+
+            <!-- INÍCIO: PAINEL DE MÉTRICAS EXECUTIVAS -->
+            <div class="row g-4 mt-1" style="margin-left: 15px; margin-right: 15px;">
+                <!-- KPI 1: Faturamento -->
+                <div class="col-md-3">
+                    <div style="background: #FFFFFF; border-radius: 12px; padding: 20px; box-shadow: 0 5px 20px rgba(26,58,82,0.05); border-left: 4px solid var(--tiffany-blue);">
+                        <p class="text-muted fw-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">Faturamento (Fechado)</p>
+                        <h3 id="kpiFaturamento" style="color: var(--deep-blue); font-weight: 800; margin: 0;">R$ 0,00</h3>
+                    </div>
+                </div>
+                <!-- KPI 2: Contratos Assinados -->
+                <div class="col-md-3">
+                    <div style="background: #FFFFFF; border-radius: 12px; padding: 20px; box-shadow: 0 5px 20px rgba(26,58,82,0.05); border-left: 4px solid var(--deep-blue);">
+                        <p class="text-muted fw-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">Contratos (Cofre)</p>
+                        <h3 id="kpiContratos" style="color: var(--deep-blue); font-weight: 800; margin: 0;">0</h3>
+                    </div>
+                </div>
+                <!-- KPI 3: Tempo Médio -->
+                <div class="col-md-3">
+                    <div style="background: #FFFFFF; border-radius: 12px; padding: 20px; box-shadow: 0 5px 20px rgba(26,58,82,0.05); border-left: 4px solid var(--tiffany-blue);">
+                        <p class="text-muted fw-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">Tempo Médio (Venda)</p>
+                        <h3 id="kpiTempo" style="color: var(--deep-blue); font-weight: 800; margin: 0;">0 dias</h3>
+                    </div>
+                </div>
+                <!-- KPI 4: Total de Leads (Agregado) -->
+                <div class="col-md-3">
+                    <div style="background: #FFFFFF; border-radius: 12px; padding: 20px; box-shadow: 0 5px 20px rgba(26,58,82,0.05); border-left: 4px solid var(--deep-blue);">
+                        <p class="text-muted fw-bold mb-1" style="font-size: 0.75rem; text-transform: uppercase;">Volume do Funil</p>
+                        <h3 id="kpiTotalLeads" style="color: var(--deep-blue); font-weight: 800; margin: 0;">0</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GRÁFICO DE FUNIL NATIVO (CSS) -->
+            <div class="table-wrapper mt-4 mb-0" style="padding-bottom: 15px;">
+                <h6 style="color: var(--deep-blue); font-weight: 700; text-transform: uppercase; margin-bottom: 15px;">Taxa de Conversão do Funil</h6>
+                <div class="progress" style="height: 25px; border-radius: 6px; background-color: #E2E8F0;">
+                    <div id="barNovo" class="progress-bar" style="width: 0%; background-color: #64748B; font-weight: bold; transition: width 1s ease;"></div>
+                    <div id="barNegociacao" class="progress-bar" style="width: 0%; background-color: #F59E0B; font-weight: bold; transition: width 1s ease;"></div>
+                    <div id="barAguardando" class="progress-bar" style="width: 0%; background-color: var(--deep-blue); font-weight: bold; transition: width 1s ease;"></div>
+                    <div id="barFechado" class="progress-bar" style="width: 0%; background-color: var(--tiffany-blue); color: var(--deep-blue); font-weight: bold; transition: width 1s ease;"></div>
+                </div>
+                <div class="d-flex justify-content-between mt-2 text-muted" style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">
+                    <span>Novos</span>
+                    <span>Negociação</span>
+                    <span>Aguardando Pgto</span>
+                    <span>Fechados</span>
+                </div>
+            </div>
+            <!-- FIM: PAINEL DE MÉTRICAS EXECUTIVAS -->
         </div>
     </div>
 
@@ -304,6 +354,61 @@
                             <button type="submit" class="btn btn-primary" style="background-color: var(--deep-blue); border: none; font-weight: 700; padding: 12px;">ENVIAR CONTRATO</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Agendamento Google Agenda -->
+    <div class="modal fade" id="modalAgendamento" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border: none; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                <div class="modal-header" style="background-color: var(--deep-blue); color: #fff; border-radius: 12px 12px 0 0;">
+                    <h5 class="modal-title" style="font-weight: 700;">Agendar Treinamento SDR</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formAgendamento">
+                        <!-- Ancora oculta do ID do Lead para o endpoint -->
+                        <input type="hidden" id="agendaIdLead" name="id_lead">
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted fw-bold" style="font-size: 0.85rem;">TÍTULO DO EVENTO</label>
+                            <input type="text" class="form-control" id="agendaTitulo" name="titulo" readonly style="background-color: #f8f9fa; font-weight: 600; cursor: not-allowed;">
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label text-muted fw-bold" style="font-size: 0.85rem;">DATA E HORA</label>
+                            <input type="datetime-local" class="form-control" id="agendaDataHora" name="data_hora" required>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary" style="background-color: var(--tiffany-blue); border: none; color: var(--deep-blue); font-weight: 800; padding: 12px;">SALVAR AGENDAMENTO</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Auditoria de Serviços Contratados -->
+    <div class="modal fade" id="modalAuditoriaServicos" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border: none; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                <div class="modal-header" style="background-color: var(--deep-blue); color: #fff; border-radius: 12px 12px 0 0;">
+                    <h5 class="modal-title" style="font-weight: 700;">Auditoria Financeira do Lead</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="p-3" style="background-color: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
+                        <p class="text-muted fw-bold m-0" style="font-size: 0.75rem; letter-spacing: 0.5px;">PACOTE ALTO TICKET FRAGMENTADO</p>
+                    </div>
+                    <ul class="list-group list-group-flush" id="listaServicosAuditoria">
+                        <!-- Motor JS fará a injeção dos nós aqui -->
+                    </ul>
+                </div>
+                <div class="modal-footer" style="border-top: none; background-color: #F8FAFC; border-radius: 0 0 12px 12px;">
+                    <button type="button" class="btn fw-bold" data-bs-dismiss="modal" style="color: var(--deep-blue); font-size: 0.85rem;">FECHAR</button>
                 </div>
             </div>
         </div>

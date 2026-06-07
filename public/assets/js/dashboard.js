@@ -2,6 +2,8 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchLeadsAtribuidos();
+    fetchMetricasDashboard();
+
     // Novo ouvinte seguro para o botão de sair
     const btnSair = document.getElementById('btnSair');
     if (btnSair) {
@@ -10,6 +12,14 @@ document.addEventListener('DOMContentLoaded', () => {
             logout();
         });
     }
+
+    // INJETE ESTAS LINHAS: Ouvinte do Modal de Agendamento
+    const formAgendamento = document.getElementById('formAgendamento');
+    if (formAgendamento) {
+        formAgendamento.addEventListener('submit', salvarAgendamento);
+    }
+
+    // (Pode haver outros ouvintes aqui embaixo, como o do formNovoLead...)
 });
 
 /**
@@ -45,6 +55,56 @@ async function fetchLeadsAtribuidos() {
     }
 }
 
+// ==========================================
+// MOTOR DE MÉTRICAS EXECUTIVAS (KPIs)
+// ==========================================
+async function fetchMetricasDashboard() {
+    try {
+        const response = await fetch('/api/dashboard/metricas', {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            const data = result.data;
+
+            // 1. Injeção Direta de KPIs
+            document.getElementById('kpiFaturamento').innerText = data.faturamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('kpiContratos').innerText = data.contratos;
+            document.getElementById('kpiTempo').innerText = Math.round(data.tempo_medio) + ' dias';
+
+            // 2. Lógica Algorítmica do Funil
+            const funil = data.funil;
+            const volNovo = funil.novo || 0;
+            const volNego = funil.em_negociacao || 0;
+            const volAgua = funil.aguardando_pagamento || 0;
+            const volFech = funil.fechado || 0;
+
+            const totalLeads = volNovo + volNego + volAgua + volFech;
+            document.getElementById('kpiTotalLeads').innerText = totalLeads;
+
+            // 3. Renderização Fluída via CSS View
+            if (totalLeads > 0) {
+                document.getElementById('barNovo').style.width = (volNovo / totalLeads * 100) + '%';
+                document.getElementById('barNovo').innerText = volNovo > 0 ? volNovo : '';
+
+                document.getElementById('barNegociacao').style.width = (volNego / totalLeads * 100) + '%';
+                document.getElementById('barNegociacao').innerText = volNego > 0 ? volNego : '';
+
+                document.getElementById('barAguardando').style.width = (volAgua / totalLeads * 100) + '%';
+                document.getElementById('barAguardando').innerText = volAgua > 0 ? volAgua : '';
+
+                document.getElementById('barFechado').style.width = (volFech / totalLeads * 100) + '%';
+                document.getElementById('barFechado').innerText = volFech > 0 ? volFech : '';
+            }
+        }
+    } catch (error) {
+        console.error("Falha ao montar painel de métricas:", error);
+    }
+}
+
 /**
  * Processa o JSON injetando no DOM, garantindo tipagem visual baseada no PRD [1]
  */
@@ -72,7 +132,11 @@ function renderizarTabela(leads) {
             currency: 'BRL'
         });
 
-        // Correção: Apenas uma tag <td> para as ações, contendo todos os 4 botões!
+        // Regra condicional de renderização do botão de Auditoria
+        const btnAuditoria = lead.status === 'fechado' 
+            ? `<button class="btn btn-sm fw-bold me-1" style="background-color: var(--tiffany-blue); color: var(--deep-blue);" onclick="abrirModalAuditoria(${lead.id})" title="Auditoria de Serviços">🔍</button>` 
+            : '';
+
         tr.innerHTML = `
             <td class="fw-bold">${lead.nome_contato}</td>
             <td>${lead.nome_agencia}</td>
@@ -80,6 +144,8 @@ function renderizarTabela(leads) {
             <td class="fw-bold" style="color: var(--tiffany-blue);">${valorFormatado}</td>
             <td><span class="badge-status badge-${lead.status}">${formatarStatusBadge(lead.status)}</span></td>
             <td class="text-end" style="white-space: nowrap;">
+                ${btnAuditoria}
+                <button class="btn btn-sm btn-outline-primary fw-bold me-1" onclick="abrirModalAgendamento(${lead.id}, '${lead.nome_contato}')" title="Agendar Treinamento">🗓️</button>
                 <button class="btn btn-sm btn-outline-secondary fw-bold me-1" onclick="abrirModalUpload(${lead.id})" title="Anexar Contrato PDF">📄</button>
                 <button class="btn btn-sm btn-outline-info fw-bold me-1" onclick="editarLead(${lead.id}, '${lead.nome_contato}', '${lead.nome_agencia}', '${lead.telefone}', ${lead.valor_proposta}, '${lead.origem}')" title="Editar Lead">✏️</button>
                 <button class="btn btn-sm btn-outline-danger fw-bold me-2" onclick="deletarLead(${lead.id})" title="Excluir Lead">🗑️</button>
@@ -313,3 +379,118 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+
+// ==========================================
+// MÓDULO DE AGENDAMENTO (GOOGLE AGENDA)
+// ==========================================
+
+// 1. Função que injeta dados do Lead selecionado e abre o visual do Modal
+function abrirModalAgendamento(idLead, nomeAgencia) {
+    // Insere o ID do Lead no input oculto para enviarmos ao back-end depois
+    document.getElementById('agendaIdLead').value = idLead;
+
+    // Monta o título padrão bloqueado
+    document.getElementById('agendaTitulo').value = 'Treinamento SDR - ' + nomeAgencia;
+
+    // Limpa a data de agendamentos anteriores
+    document.getElementById('agendaDataHora').value = '';
+
+    // Invoca a API do Bootstrap 5 para exibir o modal
+    const modal = new bootstrap.Modal(document.getElementById('modalAgendamento'));
+    modal.show();
+}
+
+// 2. Função que captura o clique de salvar e dispara para o Banco de Dados
+async function salvarAgendamento(event) {
+    event.preventDefault(); // Impede a página de recarregar
+
+    const form = event.target;
+    const btnSubmit = form.querySelector('button[type="submit"]');
+
+    // Trava de segurança UX (Evita Duplo Clique / Spam)
+    btnSubmit.disabled = true;
+    btnSubmit.innerText = 'PROCESSANDO...';
+
+    // Monta a estrutura JSON lendo os inputs do formulário
+    const payload = {
+        id_lead: parseInt(document.getElementById('agendaIdLead').value),
+        titulo: document.getElementById('agendaTitulo').value,
+        data_hora: document.getElementById('agendaDataHora').value
+    };
+
+    try {
+        // Dispara a requisição Fetch para o Controlador (API)
+        const response = await fetch('/api/agenda/agendar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        // Valida se o Status HTTP retornado pelo Controller foi 201 (Created)
+        if (response.status === 201 && result.status === 'success') {
+
+            // Oculta o modal nativamente utilizando a instância do Bootstrap
+            const modalElement = document.getElementById('modalAgendamento');
+            bootstrap.Modal.getInstance(modalElement).hide();
+
+            alert('Treinamento agendado com sucesso!');
+            form.reset();
+
+        } else {
+            // Exibe mensagem de erro barrada pelo RLS ou validação
+            alert(result.message || 'Erro ao tentar agendar o treinamento.');
+        }
+
+    } catch (error) {
+        console.error('Falha na requisição assíncrona:', error);
+        alert('Erro de rede: Falha na comunicação com o servidor.');
+    } finally {
+        // Restaura o botão estritamente no bloco finally (roda dando erro ou sucesso)
+        btnSubmit.disabled = false;
+        btnSubmit.innerText = 'SALVAR AGENDAMENTO';
+    }
+}
+
+// ==========================================
+// MÓDULO DE AUDITORIA DE SERVIÇOS
+// ==========================================
+async function abrirModalAuditoria(idLead) {
+    try {
+        const response = await fetch(`/api/leads/servicos?id_lead=${idLead}`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        const result = await response.json();
+        const lista = document.getElementById('listaServicosAuditoria');
+        lista.innerHTML = ''; // Limpa cache de aberturas anteriores
+
+        if (response.status === 200 && result.status === 'success') {
+            if (result.data.length === 0) {
+                lista.innerHTML = '<li class="list-group-item text-muted">Nenhum serviço fragmentado atrelado a este Lead.</li>';
+            } else {
+                result.data.forEach(servico => {
+                    lista.innerHTML += `
+                        <li class="list-group-item p-3 border-0 border-bottom">
+                            <strong style="color: var(--deep-blue); font-size: 0.95rem;">${servico.nome_servico}</strong><br>
+                            <small class="text-muted" style="font-size: 0.8rem;">${servico.descricao}</small>
+                        </li>`;
+                });
+            }
+            
+            const modal = new bootstrap.Modal(document.getElementById('modalAuditoriaServicos'));
+            modal.show();
+        } else {
+            alert(result.message || 'Falha de segurança ao extrair itens.');
+        }
+    } catch (error) {
+        console.error('Falha de comunicação RLS:', error);
+        alert('Erro de rede: Falha na comunicação com o servidor.');
+    }
+}

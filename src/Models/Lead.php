@@ -21,7 +21,7 @@ class Lead
                 FROM leads L 
                 INNER JOIN atribuicao_leads A ON L.id = A.id_lead 
                 WHERE A.id_usuario = :id_usuario";
-        
+
         $params = ['id_usuario' => $idUsuario];
 
         // 2. Filtro Opcional de Funil (Status)
@@ -64,7 +64,7 @@ class Lead
         $sql = "INSERT INTO atribuicao_leads (id_lead, id_usuario, compartilhado) 
                 VALUES (:id_lead, :id_usuario, :compartilhado) 
                 ON DUPLICATE KEY UPDATE compartilhado = :compartilhado_update";
-                
+
         $stmt = $pdo->prepare($sql);
         return $stmt->execute([
             'id_lead' => $idLead,
@@ -80,7 +80,7 @@ class Lead
     public static function criarLead(array $dados, int $idUsuario): bool
     {
         $pdo = Database::getConnection();
-        
+
         try {
             // Inicia transação: garante que o lead só exista se a atribuição também for registrada
             $pdo->beginTransaction();
@@ -130,13 +130,13 @@ class Lead
         $sql = "UPDATE leads SET nome_contato = :nome_contato, nome_agencia = :nome_agencia, 
                 telefone = :telefone, valor_proposta = :valor_proposta 
                 WHERE id = :id";
-        
+
         $stmt = $pdo->prepare($sql);
         return $stmt->execute([
             'nome_contato' => $dados['nome_contato'],
             'nome_agencia' => $dados['nome_agencia'],
             'telefone'     => $dados['telefone'],
-            'valor_proposta'=> $dados['valor_proposta'],
+            'valor_proposta' => $dados['valor_proposta'],
             'id'           => $idLead
         ]);
     }
@@ -153,5 +153,73 @@ class Lead
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("DELETE FROM leads WHERE id = :id");
         return $stmt->execute(['id' => $idLead]);
+    }
+
+    /**
+     * Extrai métricas agregadas para o Dashboard garantindo Isolamento Estrito de Dados (RLS).
+     */
+    public static function getMetricasDashboard(int $idUsuario): array
+    {
+        $pdo = Database::getConnection();
+
+        // Preparamos um array base para evitar erros no frontend caso o funil esteja vazio
+        $metricas = [
+            'faturamento' => 0.00,
+            'funil' => [
+                'novo' => 0,
+                'em_negociacao' => 0,
+                'aguardando_pagamento' => 0,
+                'fechado' => 0,
+                'perdido' => 0
+            ],
+            'contratos' => 0,
+            'tempo_medio' => 0
+        ];
+
+        // 1. KPI FATURAMENTO: Soma o valor das propostas apenas de leads com status 'fechado'
+        $sqlFaturamento = "SELECT COALESCE(SUM(L.valor_proposta), 0) 
+                           FROM leads L 
+                           INNER JOIN atribuicao_leads A ON L.id = A.id_lead 
+                           WHERE A.id_usuario = :id_usuario AND L.status = 'fechado'";
+        $stmt = $pdo->prepare($sqlFaturamento);
+        $stmt->execute(['id_usuario' => $idUsuario]);
+        $metricas['faturamento'] = (float) $stmt->fetchColumn();
+
+        // 2. KPI FUNIL: Conta quantos leads existem em cada etapa (Agrupamento)
+        $sqlFunil = "SELECT L.status, COUNT(L.id) as total 
+                     FROM leads L 
+                     INNER JOIN atribuicao_leads A ON L.id = A.id_lead 
+                     WHERE A.id_usuario = :id_usuario 
+                     GROUP BY L.status";
+        $stmt = $pdo->prepare($sqlFunil);
+        $stmt->execute(['id_usuario' => $idUsuario]);
+
+        // O FETCH_KEY_PAIR transforma o resultado em um array no formato ['status' => quantidade]
+        $funilData = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        foreach ($funilData as $status => $total) {
+            $metricas['funil'][$status] = (int) $total;
+        }
+
+        // 3. KPI CONTRATOS: Conta fisicamente quantos PDFs existem atrelados a estes leads
+        $sqlContratos = "SELECT COUNT(C.id) 
+                         FROM contratos C 
+                         INNER JOIN leads L ON C.id_lead = L.id 
+                         INNER JOIN atribuicao_leads A ON L.id = A.id_lead 
+                         WHERE A.id_usuario = :id_usuario";
+        $stmt = $pdo->prepare($sqlContratos);
+        $stmt->execute(['id_usuario' => $idUsuario]);
+        $metricas['contratos'] = (int) $stmt->fetchColumn();
+
+        // 4. KPI TEMPO MÉDIO: Calcula a média de dias entre a criação do lead e o pagamento
+        $sqlTempo = "SELECT COALESCE(AVG(DATEDIFF(P.data_pagamento, L.data_criacao)), 0) 
+                     FROM pagamentos P 
+                     INNER JOIN leads L ON P.id_lead = L.id 
+                     INNER JOIN atribuicao_leads A ON L.id = A.id_lead 
+                     WHERE A.id_usuario = :id_usuario";
+        $stmt = $pdo->prepare($sqlTempo);
+        $stmt->execute(['id_usuario' => $idUsuario]);
+        $metricas['tempo_medio'] = (float) $stmt->fetchColumn();
+
+        return $metricas;
     }
 }

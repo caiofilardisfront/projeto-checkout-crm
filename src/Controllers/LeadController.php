@@ -26,7 +26,7 @@ class LeadController
         try {
             // Injeção intransponível da sessão do usuário atual para acionar o RLS nativo
             $leads = Lead::getLeadsFiltrados($_SESSION['usuario_id'], $status, $busca);
-            
+
             http_response_code(200);
             echo json_encode(['status' => 'success', 'data' => $leads]);
         } catch (\Exception $e) {
@@ -96,7 +96,7 @@ class LeadController
         }
 
         $payload = json_decode(file_get_contents('php://input'), true);
-        
+
         // Sanitização estrita contra injeção de scripts (XSS) e SQLi
         $nomeContato = filter_var($payload['nome_contato'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
         $nomeAgencia = filter_var($payload['nome_agencia'] ?? '', FILTER_SANITIZE_SPECIAL_CHARS);
@@ -132,7 +132,7 @@ class LeadController
     {
         AuthMiddleware::handle();
         header('Content-Type: application/json');
-        
+
         if ($_SERVER['REQUEST_METHOD'] !== 'PUT' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
             http_response_code(405);
             echo json_encode(['status' => 'error', 'message' => 'Método HTTP não permitido.']);
@@ -141,7 +141,7 @@ class LeadController
 
         $payload = json_decode(file_get_contents('php://input'), true);
         $idLead = filter_var($payload['id'] ?? 0, FILTER_VALIDATE_INT);
-        
+
         if (!$idLead) {
             http_response_code(400);
             echo json_encode(['status' => 'error', 'message' => 'ID do Lead inválido.']);
@@ -184,6 +184,72 @@ class LeadController
             http_response_code(200);
             echo json_encode(['status' => 'success', 'message' => 'Lead removido da base de dados.']);
         } catch (\Exception $e) {
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    /**
+     * Endpoint para alimentar os KPIs do Dashboard.
+     * Retorna apenas métricas isoladas do usuário logado (RLS).
+     */
+    public function metricas(): void
+    {
+        // 1. Blindagem: Exige usuário autenticado
+        AuthMiddleware::handle();
+        header('Content-Type: application/json');
+
+        // Aceita apenas requisições de leitura (GET)
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            http_response_code(405);
+            echo json_encode(['status' => 'error', 'message' => 'Método HTTP não permitido.']);
+            exit;
+        }
+
+        try {
+            // 2. Extração segura dos dados via Model
+            $dadosMetricas = Lead::getMetricasDashboard($_SESSION['usuario_id']);
+
+            // 3. Retorno em formato JSON
+            http_response_code(200);
+            echo json_encode([
+                'status' => 'success',
+                'data' => $dadosMetricas
+            ]);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['status' => 'error', 'message' => 'Falha ao calcular métricas.']);
+        }
+        exit;
+    }
+
+    /**
+     * Endpoint de Auditoria: Lista os serviços contratados do Lead (RLS aplicado).
+     */
+    public function listarServicos(): void
+    {
+        // 1. Barreira de Segurança: Ninguém anônimo passa daqui
+        AuthMiddleware::handle();
+        header('Content-Type: application/json');
+
+        // 2. Captura o número de identificação do Lead vindo da URL (ex: ?id_lead=5)
+        $idLead = filter_input(INPUT_GET, 'id_lead', FILTER_VALIDATE_INT);
+
+        if (!$idLead) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'ID do Lead inválido ou ausente.']);
+            exit;
+        }
+
+        try {
+            // 3. Pede ao Banco para buscar os dados passando o ID da Sessão atual
+            $servicos = \Src\Models\ServicoContratado::getServicosPorLead($idLead, $_SESSION['usuario_id']);
+
+            http_response_code(200);
+            echo json_encode(['status' => 'success', 'data' => $servicos]);
+        } catch (\Exception $e) {
+            // Se o Diretor tentou hackear a URL acessando o Lead de outro, o erro cai aqui
             http_response_code(403);
             echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }
